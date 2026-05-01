@@ -1,4 +1,4 @@
-# Credentials — never commit
+# Credentials — never commit (use ibmiscrt.json.template as a starting point)
 ibmiscrt.json
 
 # Downloaded spool file output
