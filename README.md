@@ -1,6 +1,6 @@
 # get_brms_recovery_report
 
-Downloads the latest IBM i BRMS Recovery Report spool file (**QP1ARCY**) via SSH/SCP.
+Downloads the latest IBM i BRMS spool files (**QP1ARCY** — Recovery Report, **QP1AHS** — Backup History) via SSH/SCP.
 
 No IBM i Navigator, REST API, SMTP, Outlook automation, or Posh-SSH module is required.
 
@@ -8,9 +8,9 @@ The workflow is:
 
 1. Upload `remote_get_qp1arcy.sh` to the IBM i IFS temp path.
 2. Run it remotely over SSH.
-3. Locate the most recent `QP1ARCY` spool file using `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC`.
-4. Copy the spool content to a temporary IFS text file via `CPYSPLF` + `CPYTOSTMF`.
-5. Download the generated `.txt` file to the local machine using SCP.
+3. Locate the most recent `QP1ARCY` and `QP1AHS` spool files using `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC`.
+4. Copy each spool to a temporary IFS text file via `CPYSPLF` + `CPYTOSTMF`.
+5. Download both `.txt` files to the local machine using SCP.
 6. Remove all temporary files from the IBM i.
 
 ---
@@ -38,7 +38,7 @@ The workflow is:
 | SSH server active | Typically runs under `QSYSWRK` as `SSHD` |
 | PASE available | Required to run `/QOpenSys/pkgs/bin/bash` |
 | Home directory created | `/home/<user>` must exist before running `Add-SSHKey.ps1` |
-| User authorised to `QP1ARCY` | The SSH user must be able to see and copy that spool file |
+| User authorised to `QP1ARCY` and `QP1AHS` | The SSH user must be able to see and copy both spool files |
 | Authority to create/delete in `QGPL` | The remote script creates temporary physical files and removes them at exit |
 
 ### Client side
@@ -138,34 +138,36 @@ The IBM i IP address is passed as `-HostName`. Config is read from `ibmiscrt.jso
 
 ## Output
 
-The downloaded file is saved in the configured local directory.
+Two files are downloaded to the configured local directory, one per spool file.
 
 Filename format:
 
 ```text
 QP1ARCY_YYYYMMDD_HHMMSS.txt
+QP1AHS_YYYYMMDD_HHMMSS.txt
 ```
 
 Example:
 
 ```text
 QP1ARCY_20260501_162849.txt
+QP1AHS_20260501_162849.txt
 ```
 
 ---
 
 ## How it works internally
 
-The remote IBM i script (`remote_get_qp1arcy.sh`):
+The remote IBM i script (`remote_get_qp1arcy.sh`) runs the following steps for each spool file (`QP1ARCY`, then `QP1AHS`):
 
 1. Creates a temporary physical file in `QGPL` to store the latest spool metadata.
-2. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to identify the most recent `QP1ARCY` spool file.
+2. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to identify the most recent spool file.
 3. Creates another temporary physical file in `QGPL` for the spool content.
 4. Runs `CPYSPLF` to copy the spool into that physical file.
 5. Runs `CPYTOSTMF` to export the physical file member to an IFS text file.
-6. Prints the IFS file path to stdout.
+6. Prints the IFS file path to stdout (one line per spool file).
 
-The launcher script downloads that file with `scp` and removes all temporary remote files.
+The launcher script iterates over the returned paths, downloads each file with `scp`, and removes all temporary remote files.
 
 ---
 
@@ -225,7 +227,7 @@ Valid:
 - Email sending is intentionally not included.
 - The Windows script uses native `ssh.exe` and `scp.exe` — no Outlook, SMTP, Graph API, or Posh-SSH.
 - `ibmiscrt.json` must not be committed to Git (it contains local paths and credentials).
-- The script targets the `QP1ARCY` spool file specifically.
+- The script downloads `QP1ARCY` (Recovery Report) and `QP1AHS` (Backup History). If either spool does not exist the remote script exits with an error.
 
 ---
 

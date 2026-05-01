@@ -59,21 +59,28 @@ SSH_OPTS=(
 
 scp "${SSH_OPTS[@]}" remote_get_qp1arcy.sh "${IBMI_USER}@${IBMI_HOST}:/tmp/remote_get_qp1arcy.sh"
 
-remote_file=$(
+remote_output=$(
 	ssh "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}" \
 	"chmod +x /tmp/remote_get_qp1arcy.sh && /tmp/remote_get_qp1arcy.sh"
 )
 
-remote_file=$(echo "$remote_file" | tail -1 | xargs)
-
-if [[ -z "$remote_file" ]]; then
-	echo "ERROR: Remote script did not return a file path"
+if [[ -z "$remote_output" ]]; then
+	echo "ERROR: Remote script did not return any file paths"
 	exit 1
 fi
 
-scp "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}:${remote_file}" "$LOCAL_DIR/"
+remote_files=()
+while IFS= read -r line; do
+	line=$(echo "$line" | xargs)
+	[[ -z "$line" ]] && continue
+	remote_files+=("$line")
+	scp "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}:${line}" "$LOCAL_DIR/"
+	echo "Downloaded: ${LOCAL_DIR}/$(basename "$line")"
+done <<< "$remote_output"
 
-ssh "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}" \
-	"rm -f '$remote_file' /tmp/remote_get_qp1arcy.sh" >/dev/null 2>&1 || true
-
-echo "Downloaded: ${LOCAL_DIR}/$(basename "$remote_file")"
+rm_cmd="rm -f"
+for f in "${remote_files[@]}"; do
+	rm_cmd+=" '$f'"
+done
+rm_cmd+=" /tmp/remote_get_qp1arcy.sh"
+ssh "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}" "$rm_cmd" >/dev/null 2>&1 || true

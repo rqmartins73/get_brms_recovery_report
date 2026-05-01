@@ -40,14 +40,23 @@ $SshOpts = @("-i", $SshKey, "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=
 scp @SshOpts $RemoteScript "${IbmiUser}@${HostName}:$RemotePath"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$RemoteFile = ssh @SshOpts "${IbmiUser}@${HostName}" "chmod +x $RemotePath && $RemotePath"
+$RemoteOutput = ssh @SshOpts "${IbmiUser}@${HostName}" "chmod +x $RemotePath && $RemotePath"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$RemoteFile = $RemoteFile.Trim()
+$RemoteFiles = $RemoteOutput -split "`n" |
+    ForEach-Object { $_.Trim() } |
+    Where-Object { $_ -ne "" }
 
-scp @SshOpts "${IbmiUser}@${HostName}:$RemoteFile" $LocalDir
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (!$RemoteFiles -or $RemoteFiles.Count -eq 0) {
+    Write-Host "ERROR: Remote script did not return any file paths"
+    exit 1
+}
 
-ssh @SshOpts "${IbmiUser}@${HostName}" "rm -f '$RemoteFile' '$RemotePath'" | Out-Null
+foreach ($RemoteFile in $RemoteFiles) {
+    scp @SshOpts "${IbmiUser}@${HostName}:$RemoteFile" $LocalDir
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Host "Downloaded: $LocalDir\$(Split-Path $RemoteFile -Leaf)"
+}
 
-Write-Host "Downloaded: $LocalDir\$(Split-Path $RemoteFile -Leaf)"
+$rmList = ($RemoteFiles | ForEach-Object { "'$_'" }) -join " "
+ssh @SshOpts "${IbmiUser}@${HostName}" "rm -f $rmList '$RemotePath'" | Out-Null
