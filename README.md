@@ -104,16 +104,15 @@ Copy `ibmiscrt.json.template.linux` to `ibmiscrt.json` in the same folder as the
 
 ### Windows
 
-The Windows script (`get_qp1arcy.ps1`) has its settings at the top of the file. Edit those variables directly:
+Copy `ibmiscrt.json.template.windows` to `ibmiscrt.json` in the same folder as the launcher and edit it:
 
-```powershell
-$IbmiUser = "bccerqm"
-$IbmiHost = "172.26.2.5"
-$SshKey   = "$env:USERPROFILE\.ssh\ibmcloud_rsa"
-$LocalDir = "$env:USERPROFILE\Downloads"
+```json
+{
+    "user": "bccerqm",
+    "ssh_key": "C:\\Users\\ricardo.martins\\.ssh\\ibmcloud_rsa",
+    "local_dir": "C:\\Users\\ricardo.martins\\Downloads"
+}
 ```
-
-`ibmiscrt.json.template.windows` is provided as a reference but is not used by the PowerShell script.
 
 ---
 
@@ -129,11 +128,11 @@ The IBM i IP address is passed as the first argument. Config is read from `ibmis
 
 ### Windows PowerShell
 
-Edit the variables at the top of `get_qp1arcy.ps1`, then run from the folder containing the script and `remote_get_qp1arcy.sh`:
-
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5
 ```
+
+The IBM i IP address is passed as `-HostName`. Config is read from `ibmiscrt.json` in the same folder.
 
 ---
 
