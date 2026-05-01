@@ -20,7 +20,7 @@ SPLF_NAME="QP1ARCY"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 OUTPUT_FILE="${SPLF_NAME}_${TIMESTAMP}.txt"
 TMP_LIST="/tmp/ibmi_splf_list_$$.json"
-BASE_URL="https://${IP}:2005/ibmi/v1"
+BASE_URL="https://${IP}:2003/ibmi/v1"
 
 # ── Dependency check ──────────────────────────────────────────
 for cmd in curl jq; do
