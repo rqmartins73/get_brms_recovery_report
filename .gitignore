@@ -1,0 +1,9 @@
+# Credentials — never commit
+ibmiscrt.json
+
+# Downloaded spool file output
+QP1ARCY_*.txt
+QP1ARCY_*.pdf
+
+# Temp files from the Bash script
+/tmp/ibmi_splf_list_*.json
