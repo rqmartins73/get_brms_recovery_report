@@ -225,7 +225,7 @@ Valid:
 
 - Password SSH authentication is not used; key-based SSH is required.
 - The Windows script uses native `ssh.exe` and `scp.exe`.
-- `ibmiscrt.json` must not be committed to Git (it contains local paths and credentials).
+
 - The script downloads `QP1ARCY` (Recovery Report) and `QP1AHS` (Backup History). If either spool does not exist the remote script exits with an error.
 
 ---
