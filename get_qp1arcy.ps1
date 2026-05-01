@@ -37,7 +37,13 @@ if (!(Test-Path $RemoteScript)) {
 
 $SshOpts = @("-i", $SshKey, "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new")
 
-scp @SshOpts $RemoteScript "${IbmiUser}@${HostName}:$RemotePath"
+# Normalise to LF before upload — IBM i bash cannot execute CRLF scripts
+$scriptContent = (Get-Content -Raw $RemoteScript) -replace "`r`n", "`n" -replace "`r", "`n"
+$tempScript = Join-Path $env:TEMP ("remote_get_qp1arcy_{0}.sh" -f (Get-Random))
+[System.IO.File]::WriteAllText($tempScript, $scriptContent, [System.Text.UTF8Encoding]::new($false))
+
+scp @SshOpts $tempScript "${IbmiUser}@${HostName}:$RemotePath"
+Remove-Item $tempScript -ErrorAction SilentlyContinue
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $RemoteOutput = ssh @SshOpts "${IbmiUser}@${HostName}" "chmod +x $RemotePath && $RemotePath"
