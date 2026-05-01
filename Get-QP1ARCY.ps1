@@ -86,8 +86,17 @@ try {
     # ── Step 1 : Locate most recent spool via SQL ──────────────
     Write-Host "[1/3] Locating most recent $SplfName spool file..."
 
+    # Verify db2 CLI is present on the IBM i
+    $ChkResult = Invoke-SSHCommand -SessionId $Session.SessionId -Command "test -x '$DB2Cmd' && echo ok" -ErrorAction Stop
+    if ($ChkResult.Output -notcontains 'ok') {
+        Write-Error "'$DB2Cmd' not found on IBM i. Verify PASE (5770-SS1 Option 33) is installed."
+        exit 2
+    }
+
+    # QSYS2.SPOOL_INFO columns: FILE_NUMBER, CREATE_TIMESTAMP
+    # (not SPOOLED_FILE_NUMBER / CREATION_TIMESTAMP which belong to OUTPUT_QUEUE_ENTRIES)
     # Result row format: JOBNBR/JOBUSER/JOBNAME|SPLNBR
-    $SqlCmd = "${DB2Cmd} `"SELECT TRIM(CHAR(JOB_NUMBER))||'/'||TRIM(JOB_USER)||'/'||TRIM(JOB_NAME)||'|'||TRIM(CHAR(SPOOLED_FILE_NUMBER)) FROM QSYS2.OUTPUT_QUEUE_ENTRIES WHERE SPOOLED_FILE_NAME='${SplfName}' AND JOB_USER='${IbmiUser}' ORDER BY CREATION_TIMESTAMP DESC FETCH FIRST 1 ROW ONLY`" 2>/dev/null | grep '|' | tr -d ' '"
+    $SqlCmd = "${DB2Cmd} `"SELECT TRIM(JOB_NUMBER)||'/'||TRIM(JOB_USER)||'/'||TRIM(JOB_NAME)||'|'||TRIM(CHAR(FILE_NUMBER)) FROM QSYS2.SPOOL_INFO WHERE SPOOLED_FILE_NAME='${SplfName}' AND JOB_USER='${IbmiUser}' ORDER BY CREATE_TIMESTAMP DESC FETCH FIRST 1 ROW ONLY`" | grep '|' | tr -d ' '"
 
     $SqlResult = Invoke-SSHCommand -SessionId $Session.SessionId -Command $SqlCmd -ErrorAction Stop
     $SpoolRow  = $SqlResult.Output | Where-Object { $_ -match '\|' } | Select-Object -First 1

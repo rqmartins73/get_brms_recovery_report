@@ -72,10 +72,16 @@ echo "────────────────────────�
 # ── Step 1 : Locate most recent spool file via SQL ────────────
 echo "[1/3] Locating most recent ${SPLF_NAME} spool file..."
 
+# Verify db2 CLI is available on the IBM i before running the query
+ssh_run "test -x '${DB2_CMD}'" \
+    || { echo "ERROR: '${DB2_CMD}' not found on IBM i. Verify PASE (5770-SS1 Option 33) is installed."; exit 2; }
+
+# QSYS2.SPOOL_INFO columns: FILE_NUMBER, CREATE_TIMESTAMP
+# (not SPOOLED_FILE_NUMBER / CREATION_TIMESTAMP which belong to OUTPUT_QUEUE_ENTRIES)
 # Result row format: JOBNBR/JOBUSER/JOBNAME|SPLNBR
 SPOOL_ROW=$(ssh_run \
-    "${DB2_CMD} \"SELECT TRIM(CHAR(JOB_NUMBER))||'/'||TRIM(JOB_USER)||'/'||TRIM(JOB_NAME)||'|'||TRIM(CHAR(SPOOLED_FILE_NUMBER)) FROM QSYS2.OUTPUT_QUEUE_ENTRIES WHERE SPOOLED_FILE_NAME='${SPLF_NAME}' AND JOB_USER='${IBMI_USER}' ORDER BY CREATION_TIMESTAMP DESC FETCH FIRST 1 ROW ONLY\" 2>/dev/null | grep '|' | tr -d ' '") \
-    || { echo "ERROR: SSH failed or db2 query failed (exit $?)."; exit 2; }
+    "${DB2_CMD} \"SELECT TRIM(JOB_NUMBER)||'/'||TRIM(JOB_USER)||'/'||TRIM(JOB_NAME)||'|'||TRIM(CHAR(FILE_NUMBER)) FROM QSYS2.SPOOL_INFO WHERE SPOOLED_FILE_NAME='${SPLF_NAME}' AND JOB_USER='${IBMI_USER}' ORDER BY CREATE_TIMESTAMP DESC FETCH FIRST 1 ROW ONLY\" | grep '|' | tr -d ' '") \
+    || { echo "ERROR: SSH or db2 query failed (exit $?)."; exit 2; }
 
 if [[ -z "$SPOOL_ROW" ]]; then
     echo "ERROR: No ${SPLF_NAME} spool file found for user ${IBMI_USER}."
