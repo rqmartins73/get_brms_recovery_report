@@ -3,7 +3,7 @@ param(
     [string]$HostName
 )
 
-$ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir  = $PSScriptRoot
 $ConfigFile = Join-Path $ScriptDir "ibmiscrt.json"
 
 if (!(Test-Path $ConfigFile)) {
