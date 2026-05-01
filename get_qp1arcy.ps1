@@ -14,8 +14,8 @@ if (!(Test-Path $ConfigFile)) {
 $cfg = Get-Content -Raw $ConfigFile | ConvertFrom-Json
 
 $IbmiUser = $cfg.user
-$SshKey   = $cfg.ssh_key
-$LocalDir = $cfg.local_dir
+$SshKey   = [System.Environment]::ExpandEnvironmentVariables($cfg.ssh_key)
+$LocalDir = [System.Environment]::ExpandEnvironmentVariables($cfg.local_dir)
 
 if (!$IbmiUser -or !$SshKey -or !$LocalDir) {
     Write-Host "ERROR: ibmiscrt.json must contain: user, ssh_key, local_dir"

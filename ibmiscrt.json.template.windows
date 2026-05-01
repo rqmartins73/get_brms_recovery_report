@@ -1,5 +1,5 @@
 {
 	"user": "bccerqm",
-	"ssh_key": "C:\\Users\\ricardo.martins\\.ssh\\ibmcloud_rsa",
-	"local_dir": "C:\\Users\\ricardo.martins\\Downloads"
+	"ssh_key": "%USERPROFILE%\\.ssh\\ibmcloud_rsa",
+	"local_dir": "%USERPROFILE%\\Downloads"
 }
