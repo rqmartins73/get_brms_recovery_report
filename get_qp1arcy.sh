@@ -7,12 +7,12 @@
 # Usage  : ./get_qp1arcy.sh <IBM_i_IP>
 # Example: ./get_qp1arcy.sh 192.168.10.50
 #
-# Depends: ssh, scp, sshpass, jq
-# Creds  : ibmiscrt.json  { "user": "...", "password": "..." }
+# Depends: ssh, scp, jq
+# Creds  : ibmiscrt.json  { "user": "...", "key": "/path/to/private_key" }
 #
-# Note: SSH key auth is recommended for production use.
-#       To set up: ssh-copy-id <user>@<IBM_i_IP>
-#       Then remove sshpass and use plain ssh/scp below.
+# Key setup (one-time):
+#   ssh-keygen -t rsa -b 4096 -f ~/.ssh/ibmi_id_rsa
+#   ssh-copy-id -i ~/.ssh/ibmi_id_rsa.pub <user>@<IBM_i_IP>
 # ============================================================
 
 set -euo pipefail
@@ -23,14 +23,14 @@ CREDS_FILE="ibmiscrt.json"
 SPLF_NAME="QP1ARCY"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 OUTPUT_FILE="${SPLF_NAME}_${TIMESTAMP}.txt"
-IFS_TMP="/tmp/${SPLF_NAME}_${TIMESTAMP}_$$.txt"
+IFS_TMP="/tmp/$OUTPUT_FILE"
 
 # IBM i PASE command paths
 DB2_CMD="/QOpenSys/usr/bin/db2"
 SYSTEM_CMD="/QOpenSys/usr/bin/system"
 
 # ── Dependency check ──────────────────────────────────────────
-for cmd in ssh scp sshpass jq; do
+for cmd in ssh scp jq; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: '$cmd' is required but not installed."; exit 1; }
 done
 
@@ -40,29 +40,31 @@ if [[ ! -f "$CREDS_FILE" ]]; then
     exit 1
 fi
 
-IBMI_USER=$(jq -r '.user'     "$CREDS_FILE")
-IBMI_PASS=$(jq -r '.password' "$CREDS_FILE")
+IBMI_USER=$(jq -r '.user' "$CREDS_FILE")
+IBMI_KEY=$(jq  -r '.key'  "$CREDS_FILE")
 
 if [[ -z "$IBMI_USER" || "$IBMI_USER" == "null" ]]; then
     echo "ERROR: 'user' key missing or empty in $CREDS_FILE"; exit 1
 fi
-if [[ -z "$IBMI_PASS" || "$IBMI_PASS" == "null" ]]; then
-    echo "ERROR: 'password' key missing or empty in $CREDS_FILE"; exit 1
+if [[ -z "$IBMI_KEY" || "$IBMI_KEY" == "null" ]]; then
+    echo "ERROR: 'key' path missing or empty in $CREDS_FILE"; exit 1
+fi
+if [[ ! -f "$IBMI_KEY" ]]; then
+    echo "ERROR: SSH key file not found: $IBMI_KEY"; exit 1
 fi
 
 # ── SSH helpers ───────────────────────────────────────────────
-# Password is passed via SSHPASS env var (avoids it showing in process list)
-export SSHPASS="$IBMI_PASS"
-SSH_OPTS="-o StrictHostKeyChecking=no -o BatchMode=no -o ConnectTimeout=10"
+SSH_OPTS="-i ${IBMI_KEY} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes"
 
-ssh_run() { sshpass -e ssh  $SSH_OPTS "${IBMI_USER}@${IP}" "$1"; }
-scp_get() { sshpass -e scp  $SSH_OPTS "${IBMI_USER}@${IP}:$1" "$2"; }
+ssh_run() { ssh $SSH_OPTS "${IBMI_USER}@${IP}" "$1"; }
+scp_get() { scp $SSH_OPTS "${IBMI_USER}@${IP}:$1" "$2"; }
 
 # ── Header ────────────────────────────────────────────────────
 echo "────────────────────────────────────────────────"
 echo " IBM i BRMS Report Downloader"
 echo " Host  : ${IP}"
 echo " User  : ${IBMI_USER}"
+echo " Key   : ${IBMI_KEY}"
 echo " Spool : ${SPLF_NAME}"
 echo " Mode  : SSH + CPYSPLF + SCP"
 echo "────────────────────────────────────────────────"
@@ -70,7 +72,7 @@ echo "────────────────────────�
 # ── Step 1 : Locate most recent spool file via SQL ────────────
 echo "[1/3] Locating most recent ${SPLF_NAME} spool file..."
 
-# Query QSYS2.OUTPUT_QUEUE_ENTRIES; result row: JOBNBR/JOBUSER/JOBNAME|SPLNBR
+# Result row format: JOBNBR/JOBUSER/JOBNAME|SPLNBR
 SPOOL_ROW=$(ssh_run \
     "${DB2_CMD} \"SELECT TRIM(CHAR(JOB_NUMBER))||'/'||TRIM(JOB_USER)||'/'||TRIM(JOB_NAME)||'|'||TRIM(CHAR(SPOOLED_FILE_NUMBER)) FROM QSYS2.OUTPUT_QUEUE_ENTRIES WHERE SPOOLED_FILE_NAME='${SPLF_NAME}' AND JOB_USER='${IBMI_USER}' ORDER BY CREATION_TIMESTAMP DESC FETCH FIRST 1 ROW ONLY\" 2>/dev/null | grep '|' | tr -d ' '") \
     || { echo "ERROR: SSH failed or db2 query failed (exit $?)."; exit 2; }
