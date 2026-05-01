@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ============================================================
 # get_qp1arcy.sh
 # Downloads the BRMS Recovery Report spool file (QP1ARCY)
@@ -17,101 +17,63 @@
 
 set -euo pipefail
 
-# ── Parameters ────────────────────────────────────────────────
-IP="${1:?ERROR: IBM i IP address required.  Usage: $0 <IP>}"
-CREDS_FILE="ibmiscrt.json"
-SPLF_NAME="QP1ARCY"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-OUTPUT_FILE="${SPLF_NAME}_${TIMESTAMP}.txt"
-IFS_TMP="/tmp/$OUTPUT_FILE"
-
-# IBM i PASE command paths
-DB2_CMD="/QOpenSys/usr/bin/db2"
-SYSTEM_CMD="/QOpenSys/usr/bin/system"
-
-# ── Dependency check ──────────────────────────────────────────
-for cmd in ssh scp jq; do
-    command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: '$cmd' is required but not installed."; exit 1; }
-done
-
-# ── Read credentials ──────────────────────────────────────────
-if [[ ! -f "$CREDS_FILE" ]]; then
-    echo "ERROR: Credentials file '$CREDS_FILE' not found in $(pwd)"
-    exit 1
+if [[ $# -ne 1 ]]; then
+	echo "Usage: $0 IBM_I_IP"
+	exit 1
 fi
 
-IBMI_USER=$(jq -r '.user' "$CREDS_FILE")
-IBMI_KEY=$(jq  -r '.key'  "$CREDS_FILE")
+IBMI_HOST="$1"
+CONFIG_FILE="./ibmiscrt.json"
 
-if [[ -z "$IBMI_USER" || "$IBMI_USER" == "null" ]]; then
-    echo "ERROR: 'user' key missing or empty in $CREDS_FILE"; exit 1
-fi
-if [[ -z "$IBMI_KEY" || "$IBMI_KEY" == "null" ]]; then
-    echo "ERROR: 'key' path missing or empty in $CREDS_FILE"; exit 1
-fi
-if [[ ! -f "$IBMI_KEY" ]]; then
-    echo "ERROR: SSH key file not found: $IBMI_KEY"; exit 1
+if [[ ! -f "$CONFIG_FILE" ]]; then
+	echo "ERROR: Config file not found: $CONFIG_FILE"
+	exit 1
 fi
 
-# ── SSH helpers ───────────────────────────────────────────────
-SSH_OPTS="-i ${IBMI_KEY} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes"
+IBMI_USER=$(jq -r '.user' "$CONFIG_FILE")
+SSH_KEY=$(jq -r '.ssh_key' "$CONFIG_FILE")
+LOCAL_DIR=$(jq -r '.local_dir' "$CONFIG_FILE")
 
-ssh_run() { ssh $SSH_OPTS "${IBMI_USER}@${IP}" "$1"; }
-scp_get() { scp $SSH_OPTS "${IBMI_USER}@${IP}:$1" "$2"; }
-
-# ── Header ────────────────────────────────────────────────────
-echo "────────────────────────────────────────────────"
-echo " IBM i BRMS Report Downloader"
-echo " Host  : ${IP}"
-echo " User  : ${IBMI_USER}"
-echo " Key   : ${IBMI_KEY}"
-echo " Spool : ${SPLF_NAME}"
-echo " Mode  : SSH + CPYSPLF + SCP"
-echo "────────────────────────────────────────────────"
-
-# ── Step 1 : Locate most recent spool file via SQL ────────────
-echo "[1/3] Locating most recent ${SPLF_NAME} spool file..."
-
-# Verify db2 CLI is available on the IBM i before running the query
-ssh_run "test -x '${DB2_CMD}'" \
-    || { echo "ERROR: '${DB2_CMD}' not found on IBM i. Verify PASE (5770-SS1 Option 33) is installed."; exit 2; }
-
-# QSYS2.SPOOL_INFO columns: FILE_NUMBER, CREATE_TIMESTAMP
-# (not SPOOLED_FILE_NUMBER / CREATION_TIMESTAMP which belong to OUTPUT_QUEUE_ENTRIES)
-# Result row format: JOBNBR/JOBUSER/JOBNAME|SPLNBR
-SPOOL_ROW=$(ssh_run \
-    "${DB2_CMD} \"SELECT TRIM(JOB_NUMBER)||'/'||TRIM(JOB_USER)||'/'||TRIM(JOB_NAME)||'|'||TRIM(CHAR(FILE_NUMBER)) FROM QSYS2.SPOOL_INFO WHERE SPOOLED_FILE_NAME='${SPLF_NAME}' AND JOB_USER='${IBMI_USER}' ORDER BY CREATE_TIMESTAMP DESC FETCH FIRST 1 ROW ONLY\" | grep '|' | tr -d ' '") \
-    || { echo "ERROR: SSH or db2 query failed (exit $?)."; exit 2; }
-
-if [[ -z "$SPOOL_ROW" ]]; then
-    echo "ERROR: No ${SPLF_NAME} spool file found for user ${IBMI_USER}."
-    echo "       Ensure BRMS has generated the recovery report."
-    exit 3
+if [[ -z "$IBMI_USER" || "$IBMI_USER" == "null" || -z "$SSH_KEY" || "$SSH_KEY" == "null" || -z "$LOCAL_DIR" || "$LOCAL_DIR" == "null" ]]; then
+	echo "ERROR: Invalid ibmiscrt.json. Required fields: user, ssh_key, local_dir"
+	exit 1
 fi
 
-JOB_ID=$(echo "$SPOOL_ROW"  | cut -d'|' -f1)
-SPLF_NBR=$(echo "$SPOOL_ROW" | cut -d'|' -f2)
+if [[ ! -f "$SSH_KEY" ]]; then
+	echo "ERROR: SSH key not found: $SSH_KEY"
+	exit 1
+fi
 
-echo "    Job    : ${JOB_ID}"
-echo "    Spool# : ${SPLF_NBR}"
+if [[ ! -f "./remote_get_qp1arcy.sh" ]]; then
+	echo "ERROR: remote_get_qp1arcy.sh not found in current directory"
+	exit 1
+fi
 
-# ── Step 2 : Copy spool to IFS ────────────────────────────────
-echo "[2/3] Copying spool to IFS temp file..."
+mkdir -p "$LOCAL_DIR"
 
-ssh_run "${SYSTEM_CMD} \"CPYSPLF FILE(${SPLF_NAME}) TOFILE(*IFS) TOSTMF('${IFS_TMP}') STMFOPT(*REPLACE) JOB(${JOB_ID}) SPLNBR(${SPLF_NBR}) WSCST(*AUTOCVT)\"" \
-    || { echo "ERROR: CPYSPLF failed — check job ID '${JOB_ID}' and spool number '${SPLF_NBR}'."; exit 4; }
+SSH_OPTS=(
+	-i "$SSH_KEY"
+	-o BatchMode=yes
+	-o StrictHostKeyChecking=accept-new
+)
 
-# ── Step 3 : Download via SCP and clean up ────────────────────
-echo "[3/3] Downloading '${IFS_TMP}' → '${OUTPUT_FILE}'..."
+scp "${SSH_OPTS[@]}" remote_get_qp1arcy.sh "${IBMI_USER}@${IBMI_HOST}:/tmp/remote_get_qp1arcy.sh"
 
-scp_get "$IFS_TMP" "$OUTPUT_FILE" \
-    || { echo "ERROR: SCP download failed."; exit 5; }
+remote_file=$(
+	ssh "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}" \
+	"chmod +x /tmp/remote_get_qp1arcy.sh && /tmp/remote_get_qp1arcy.sh"
+)
 
-ssh_run "rm -f '${IFS_TMP}'" || true
+remote_file=$(echo "$remote_file" | tail -1 | xargs)
 
-# ── Done ──────────────────────────────────────────────────────
-echo "────────────────────────────────────────────────"
-echo " SUCCESS"
-echo " File : $(pwd)/${OUTPUT_FILE}"
-echo " Size : $(du -h "$OUTPUT_FILE" | cut -f1)"
-echo "────────────────────────────────────────────────"
+if [[ -z "$remote_file" ]]; then
+	echo "ERROR: Remote script did not return a file path"
+	exit 1
+fi
+
+scp "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}:${remote_file}" "$LOCAL_DIR/"
+
+ssh "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}" \
+	"rm -f '$remote_file' /tmp/remote_get_qp1arcy.sh" >/dev/null 2>&1 || true
+
+echo "Downloaded: ${LOCAL_DIR}/$(basename "$remote_file")"
