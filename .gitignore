@@ -5,5 +5,4 @@ ibmiscrt.json
 QP1ARCY_*.txt
 QP1ARCY_*.pdf
 
-# Temp files from the Bash script
-/tmp/ibmi_splf_list_*.json
+# IFS temp files land on the IBM i and are deleted automatically; nothing local to ignore
