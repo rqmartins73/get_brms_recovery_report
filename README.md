@@ -38,7 +38,7 @@ The workflow is:
 | SSH server active | Typically runs under `QSYSWRK` as `SSHD` |
 | PASE available | Required to run `/QOpenSys/pkgs/bin/bash` |
 | Home directory created | `/home/<user>` must exist before running `Add-SSHKey.ps1` |
-| User authorised to `QP1ARCY` and `QP1AHS` | The SSH user must be able to see and copy both spool files |
+| User authorised to `QP1ARCY`, `QP1A2RCY`, and `QP1AHS` | The SSH user must be able to see and copy all three spool files |
 | Authority to create/delete in `QGPL` | The remote script creates temporary physical files and removes them at exit |
 
 ### Client side
@@ -206,15 +206,14 @@ SYSPROD_QP1AHS_20260501_162849.txt
 
 ## How it works internally
 
-The remote IBM i script (`remote_get_qp1arcy.sh`) runs the following steps for each spool file (`QP1ARCY`, then `QP1AHS`):
+On startup, `remote_get_qp1arcy.sh` reads the system hostname (`uname -n`, uppercased) once to use as the LPAR name prefix. It then runs the following steps for each of the three spool files (`QP1ARCY`, `QP1A2RCY`, `QP1AHS`):
 
-1. Reads the system hostname (`uname -n`, uppercased) to use as the LPAR name prefix in the output filename.
-2. Creates a temporary physical file in `QGPL` to store the spool metadata.
-3. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to identify the target spool file — the most recent one, or the most recent one on a specific date if `-d` / `-Date` was passed. Repeated for each of the three spool files (`QP1ARCY`, `QP1A2RCY`, `QP1AHS`).
-4. Creates another temporary physical file in `QGPL` for the spool content.
-5. Runs `CPYSPLF` to copy the spool into that physical file.
-6. Runs `CPYTOSTMF` to export the physical file member to an IFS text file named `<LPAR>_<SPLF>_<timestamp>.txt`.
-7. Prints the IFS file path to stdout (one line per spool file).
+1. Creates a temporary physical file in `QGPL` to store the spool metadata.
+2. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to retrieve the job name, file number, and `CREATE_TIMESTAMP` of the target spool — the most recent one, or the most recent one on a specific date if `-d` / `-Date` was passed.
+3. Creates another temporary physical file in `QGPL` for the spool content.
+4. Runs `CPYSPLF` to copy the spool into that physical file.
+5. Runs `CPYTOSTMF` to export the physical file member to an IFS text file. The filename is `<LPAR>_<SPLF>_<YYYYMMDD_HHMMSS>.txt`, where the timestamp comes from the spool's own `CREATE_TIMESTAMP`, not the download time.
+6. Prints the IFS file path to stdout (one line per spool file).
 
 The launcher script iterates over the returned paths, downloads each file with `scp`, and removes all temporary remote files.
 
@@ -248,7 +247,7 @@ The user's home directory (`/home/<user>`) does not exist on the IBM i. Ask the 
 
 ### No spool file found for the specified date
 
-The remote script exits with an error if no `QP1ARCY` or `QP1AHS` spool exists for the requested date:
+The remote script exits with an error if no spool exists for the requested date (checked for each of `QP1ARCY`, `QP1A2RCY`, `QP1AHS` in sequence):
 
 ```
 ERROR: No spool file found for QP1ARCY
