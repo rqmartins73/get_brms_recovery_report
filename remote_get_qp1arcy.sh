@@ -2,7 +2,7 @@
 set -euo pipefail
 
 LPAR_NAME=$(/QOpenSys/usr/bin/system "DSPNETA" 2>/dev/null \
-	| awk '/LCLLOCNAME/ { print $NF; exit }' \
+	| awk '/Default local location/ { print $NF; exit }' \
 	| tr '[:lower:]' '[:upper:]' \
 	| tr -d '[:space:]')
 if [[ -z "$LPAR_NAME" ]]; then
