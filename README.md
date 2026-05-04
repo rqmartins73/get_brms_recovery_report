@@ -174,15 +174,17 @@ Two files are downloaded to the configured local directory, one per spool file.
 Filename format:
 
 ```text
-QP1ARCY_YYYYMMDD_HHMMSS.txt
-QP1AHS_YYYYMMDD_HHMMSS.txt
+<LPAR>_QP1ARCY_YYYYMMDD_HHMMSS.txt
+<LPAR>_QP1AHS_YYYYMMDD_HHMMSS.txt
 ```
+
+The LPAR name is read from the IBM i system hostname (`uname -n`) and uppercased automatically.
 
 Example:
 
 ```text
-QP1ARCY_20260501_162849.txt
-QP1AHS_20260501_162849.txt
+SYSPROD_QP1ARCY_20260501_162849.txt
+SYSPROD_QP1AHS_20260501_162849.txt
 ```
 
 ---

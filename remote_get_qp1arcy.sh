@@ -1,6 +1,7 @@
 #!/QOpenSys/pkgs/bin/bash
 set -euo pipefail
 
+LPAR_NAME=$(uname -n | tr '[:lower:]' '[:upper:]')
 _SEQ=0
 
 get_splf() {
@@ -9,7 +10,7 @@ get_splf() {
 	local UNIQ="${_SEQ}$(date +%H%M%S)"
 	local LSTPF="L${UNIQ}"
 	local SPLPF="S${UNIQ}"
-	local REMOTE_STMF="/tmp/${SPLF_NAME}_$(date +%Y%m%d_%H%M%S).txt"
+	local REMOTE_STMF="/tmp/${LPAR_NAME}_${SPLF_NAME}_$(date +%Y%m%d_%H%M%S).txt"
 	local LATEST_ROW="/tmp/latest_${SPLF_NAME}_$$.txt"
 	local SQL_FILE="/tmp/get_${SPLF_NAME}_$$.sql"
 
