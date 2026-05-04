@@ -1,10 +1,20 @@
 param(
     [Parameter(Mandatory=$true)]
-    [string]$HostName
+    [string]$HostName,
+
+    [Parameter(Mandatory=$false)]
+    [string]$SecretsFile = ""
 )
 
-$ScriptDir  = $PSScriptRoot
-$ConfigFile = Join-Path $ScriptDir "ibmiscrt.json"
+$ScriptDir = $PSScriptRoot
+
+if ($SecretsFile -eq "") {
+    $ConfigFile = Join-Path $ScriptDir "ibmiscrt.json"
+} elseif ([System.IO.Path]::IsPathRooted($SecretsFile)) {
+    $ConfigFile = $SecretsFile
+} else {
+    $ConfigFile = Join-Path $ScriptDir $SecretsFile
+}
 
 if (!(Test-Path $ConfigFile)) {
     Write-Host "ERROR: Config file not found: $ConfigFile"

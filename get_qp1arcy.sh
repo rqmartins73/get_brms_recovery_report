@@ -4,8 +4,9 @@
 # Downloads the BRMS Recovery Report spool file (QP1ARCY)
 # from an IBM i V7R5 system via SSH + CPYSPLF + SCP.
 #
-# Usage  : ./get_qp1arcy.sh <IBM_i_IP>
+# Usage  : ./get_qp1arcy.sh <IBM_i_IP> [secrets_file]
 # Example: ./get_qp1arcy.sh 192.168.10.50
+#          ./get_qp1arcy.sh 192.168.10.50 /etc/mysite.json
 #
 # Depends: ssh, scp, jq
 # Creds  : ibmiscrt.json  { "user": "...", "key": "/path/to/private_key" }
@@ -17,13 +18,13 @@
 
 set -euo pipefail
 
-if [[ $# -ne 1 ]]; then
-	echo "Usage: $0 IBM_I_IP"
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+	echo "Usage: $0 <IBM_I_IP> [secrets_file]"
 	exit 1
 fi
 
 IBMI_HOST="$1"
-CONFIG_FILE="./ibmiscrt.json"
+CONFIG_FILE="${2:-./ibmiscrt.json}"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
 	echo "ERROR: Config file not found: $CONFIG_FILE"
