@@ -192,7 +192,7 @@ Filename format:
 <LPAR>_QP1AHS_YYYYMMDD_HHMMSS.txt
 ```
 
-The LPAR name is read from the IBM i system hostname (`uname -n`) and uppercased automatically.
+The LPAR name is read from the IBM i system hostname (`uname -n`) and uppercased automatically. The timestamp reflects the spool file's own `CREATE_TIMESTAMP` on the IBM i, not the time of download.
 
 Example:
 

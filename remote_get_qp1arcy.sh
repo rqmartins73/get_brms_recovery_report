@@ -11,7 +11,6 @@ get_splf() {
 	local UNIQ="${_SEQ}$(date +%H%M%S)"
 	local LSTPF="L${UNIQ}"
 	local SPLPF="S${UNIQ}"
-	local REMOTE_STMF="/tmp/${LPAR_NAME}_${SPLF_NAME}_$(date +%Y%m%d_%H%M%S).txt"
 	local LATEST_ROW="/tmp/latest_${SPLF_NAME}_$$.txt"
 	local SQL_FILE="/tmp/get_${SPLF_NAME}_$$.sql"
 	local DATE_FILTER=""
@@ -24,7 +23,7 @@ get_splf() {
 
 	cat > "$SQL_FILE" <<SQLEOF
 INSERT INTO QGPL.${LSTPF}
-SELECT TRIM(JOB_NAME) CONCAT '|' CONCAT TRIM(CHAR(FILE_NUMBER))
+SELECT TRIM(JOB_NAME) CONCAT '|' CONCAT TRIM(CHAR(FILE_NUMBER)) CONCAT '|' CONCAT TRIM(CHAR(CREATE_TIMESTAMP))
 FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC
 WHERE SPOOLED_FILE_NAME = '${SPLF_NAME}'
 ${DATE_FILTER}
@@ -48,14 +47,24 @@ SQLEOF
 	fi
 
 	local JOB_NAME="${ROW%%|*}"
-	local SPLNBR="${ROW##*|}"
+	local REST="${ROW#*|}"
+	local SPLNBR="${REST%%|*}"
+	local SPLF_TS="${ROW##*|}"
 	JOB_NAME=$(echo "$JOB_NAME" | xargs)
 	SPLNBR=$(echo "$SPLNBR" | xargs)
+	SPLF_TS=$(echo "$SPLF_TS" | xargs)
 
-	if [[ -z "$JOB_NAME" || -z "$SPLNBR" || "$JOB_NAME" == "$SPLNBR" ]]; then
+	if [[ -z "$JOB_NAME" || -z "$SPLNBR" || -z "$SPLF_TS" ]]; then
 		echo "ERROR: Failed to parse spool information for ${SPLF_NAME}. ROW=${ROW}" >&2
 		exit 1
 	fi
+
+	# Strip non-digits from timestamp (handles any IBM i separator style),
+	# take YYYYMMDDHHMMSS (14 digits), insert _ between date and time.
+	local SPLF_DT
+	SPLF_DT=$(echo "$SPLF_TS" | tr -cd '0-9' | cut -c1-14 | sed 's/^\(.\{8\}\)/\1_/')
+
+	local REMOTE_STMF="/tmp/${LPAR_NAME}_${SPLF_NAME}_${SPLF_DT}.txt"
 
 	/QOpenSys/usr/bin/system "CRTPF FILE(QGPL/${SPLPF}) RCDLEN(378) SIZE(*NOMAX)" >/dev/null
 	/QOpenSys/usr/bin/system "CPYSPLF FILE(${SPLF_NAME}) TOFILE(QGPL/${SPLPF}) JOB(${JOB_NAME}) SPLNBR(${SPLNBR}) CTLCHAR(*NONE) MBROPT(*REPLACE)" >/dev/null
