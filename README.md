@@ -8,9 +8,9 @@ The workflow is:
 
 1. Upload `remote_get_qp1arcy.sh` to the IBM i IFS temp path.
 2. Run it remotely over SSH.
-3. Locate the most recent `QP1ARCY` and `QP1AHS` spool files using `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC`.
+3. Locate the most recent `QP1ARCY` and `QP1AHS` spool files using `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` (optionally filtered by a specific date).
 4. Copy each spool to a temporary IFS text file via `CPYSPLF` + `CPYTOSTMF`.
-5. Download both `.txt` files to the local machine using SCP.
+5. Download both `.txt` files to the local machine using SCP, prefixed with the IBM i LPAR name.
 6. Remove all temporary files from the IBM i.
 
 ---
@@ -109,10 +109,12 @@ Copy `ibmiscrt.json.template.windows` to `ibmiscrt.json` in the same folder as t
 ```json
 {
     "user": "bccerqm",
-    "ssh_key": "C:\\Users\\ricardo.martins\\.ssh\\id_rsa",
-    "local_dir": "C:\\Users\\ricardo.martins\\Downloads"
+    "ssh_key": "%USERPROFILE%\\.ssh\\id_rsa",
+    "local_dir": "%USERPROFILE%\\Downloads"
 }
 ```
+
+`%USERPROFILE%` is expanded automatically by the launcher script.
 
 ---
 
@@ -204,12 +206,13 @@ SYSPROD_QP1AHS_20260501_162849.txt
 
 The remote IBM i script (`remote_get_qp1arcy.sh`) runs the following steps for each spool file (`QP1ARCY`, then `QP1AHS`):
 
-1. Creates a temporary physical file in `QGPL` to store the latest spool metadata.
-2. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to identify the most recent spool file.
-3. Creates another temporary physical file in `QGPL` for the spool content.
-4. Runs `CPYSPLF` to copy the spool into that physical file.
-5. Runs `CPYTOSTMF` to export the physical file member to an IFS text file.
-6. Prints the IFS file path to stdout (one line per spool file).
+1. Reads the system hostname (`uname -n`, uppercased) to use as the LPAR name prefix in the output filename.
+2. Creates a temporary physical file in `QGPL` to store the spool metadata.
+3. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to identify the target spool file — the most recent one, or the most recent one on a specific date if `-d` / `-Date` was passed.
+4. Creates another temporary physical file in `QGPL` for the spool content.
+5. Runs `CPYSPLF` to copy the spool into that physical file.
+6. Runs `CPYTOSTMF` to export the physical file member to an IFS text file named `<LPAR>_<SPLF>_<timestamp>.txt`.
+7. Prints the IFS file path to stdout (one line per spool file).
 
 The launcher script iterates over the returned paths, downloads each file with `scp`, and removes all temporary remote files.
 
@@ -240,6 +243,16 @@ Ensure this file is in the same folder as the launcher script.
 ### `Add-SSHKey.ps1` fails with "Failed to create .ssh on remote"
 
 The user's home directory (`/home/<user>`) does not exist on the IBM i. Ask the system administrator to create it before running `Add-SSHKey.ps1`.
+
+### No spool file found for the specified date
+
+The remote script exits with an error if no `QP1ARCY` or `QP1AHS` spool exists for the requested date:
+
+```
+ERROR: No spool file found for QP1ARCY
+```
+
+Verify that a BRMS backup ran on that date and that the spool files have not been cleared from the output queue. Omit `-d` / `-Date` to retrieve the most recent available files.
 
 ### JSON parsing fails (Linux/macOS)
 
