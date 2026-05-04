@@ -3,7 +3,10 @@ param(
     [string]$HostName,
 
     [Parameter(Mandatory=$false)]
-    [string]$SecretsFile = ""
+    [string]$SecretsFile = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$Date = ""
 )
 
 $ScriptDir = $PSScriptRoot
@@ -14,6 +17,11 @@ if ($SecretsFile -eq "") {
     $ConfigFile = $SecretsFile
 } else {
     $ConfigFile = Join-Path $ScriptDir $SecretsFile
+}
+
+if ($Date -ne "" -and $Date -notmatch '^\d{4}-\d{2}-\d{2}$') {
+    Write-Host "ERROR: Date must be in YYYY-MM-DD format (e.g. 2026-05-03)"
+    exit 1
 }
 
 if (!(Test-Path $ConfigFile)) {
@@ -56,7 +64,9 @@ scp @SshOpts $tempScript "${IbmiUser}@${HostName}:$RemotePath"
 Remove-Item $tempScript -ErrorAction SilentlyContinue
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$RemoteOutput = ssh @SshOpts "${IbmiUser}@${HostName}" "chmod +x $RemotePath && $RemotePath"
+$RemoteCmd = "chmod +x $RemotePath && $RemotePath"
+if ($Date -ne "") { $RemoteCmd += " $Date" }
+$RemoteOutput = ssh @SshOpts "${IbmiUser}@${HostName}" $RemoteCmd
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $RemoteFiles = $RemoteOutput -split "`n" |

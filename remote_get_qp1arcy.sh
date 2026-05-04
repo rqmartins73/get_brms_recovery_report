@@ -2,6 +2,7 @@
 set -euo pipefail
 
 LPAR_NAME=$(uname -n | tr '[:lower:]' '[:upper:]')
+TARGET_DATE="${1:-}"
 _SEQ=0
 
 get_splf() {
@@ -13,6 +14,11 @@ get_splf() {
 	local REMOTE_STMF="/tmp/${LPAR_NAME}_${SPLF_NAME}_$(date +%Y%m%d_%H%M%S).txt"
 	local LATEST_ROW="/tmp/latest_${SPLF_NAME}_$$.txt"
 	local SQL_FILE="/tmp/get_${SPLF_NAME}_$$.sql"
+	local DATE_FILTER=""
+
+	if [[ -n "$TARGET_DATE" ]]; then
+		DATE_FILTER="AND DATE(CREATE_TIMESTAMP) = '${TARGET_DATE}'"
+	fi
 
 	/QOpenSys/usr/bin/system "CRTPF FILE(QGPL/${LSTPF}) RCDLEN(128) SIZE(*NOMAX)" >/dev/null
 
@@ -21,6 +27,7 @@ INSERT INTO QGPL.${LSTPF}
 SELECT TRIM(JOB_NAME) CONCAT '|' CONCAT TRIM(CHAR(FILE_NUMBER))
 FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC
 WHERE SPOOLED_FILE_NAME = '${SPLF_NAME}'
+${DATE_FILTER}
 ORDER BY CREATE_TIMESTAMP DESC
 FETCH FIRST 1 ROW ONLY;
 SQLEOF

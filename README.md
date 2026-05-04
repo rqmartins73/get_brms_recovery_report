@@ -121,48 +121,59 @@ Copy `ibmiscrt.json.template.windows` to `ibmiscrt.json` in the same folder as t
 ### Linux/macOS
 
 ```bash
-./get_qp1arcy.sh <IBM_i_IP> [secrets_file]
+./get_qp1arcy.sh <IBM_i_IP> [-s secrets_file] [-d YYYY-MM-DD]
 ```
 
 | Argument | Required | Default | Description |
 |---|---|---|---|
 | `IBM_i_IP` | Yes | — | IP address or hostname of the IBM i |
-| `secrets_file` | No | `./ibmiscrt.json` | Path to the credentials JSON file |
+| `-s secrets_file` | No | `./ibmiscrt.json` | Path to the credentials JSON file |
+| `-d YYYY-MM-DD` | No | latest available | Download spool files from this specific date |
 
 Examples:
 
 ```bash
-# Default secrets file
+# Latest spool files, default secrets
 ./get_qp1arcy.sh 172.26.2.5
 
-# Custom secrets file
-./get_qp1arcy.sh 172.26.2.5 /etc/client_a.json
+# Latest spool files, custom secrets
+./get_qp1arcy.sh 172.26.2.5 -s /etc/client_a.json
+
+# Spool files from a specific date
+./get_qp1arcy.sh 172.26.2.5 -d 2026-05-03
+
+# Specific date and custom secrets
+./get_qp1arcy.sh 172.26.2.5 -s /etc/client_a.json -d 2026-05-03
 ```
 
 ### Windows PowerShell
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName <IBM_i_IP> [-SecretsFile <path>]
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName <IBM_i_IP> [-SecretsFile <path>] [-Date YYYY-MM-DD]
 ```
 
 | Parameter | Required | Default | Description |
 |---|---|---|---|
 | `-HostName` | Yes | — | IP address or hostname of the IBM i |
 | `-SecretsFile` | No | `ibmiscrt.json` | Filename or path to the credentials JSON file |
+| `-Date` | No | latest available | Download spool files from this specific date (`YYYY-MM-DD`) |
 
 If `-SecretsFile` is a relative path or filename, it is resolved relative to the script folder. Absolute paths are used as-is.
 
 Examples:
 
 ```powershell
-# Default secrets file
+# Latest spool files, default secrets
 powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5
 
-# Custom secrets file (relative to script folder)
+# Latest spool files, custom secrets
 powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -SecretsFile client_a.json
 
-# Custom secrets file (absolute path)
-powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -SecretsFile "C:\secrets\client_a.json"
+# Spool files from a specific date
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -Date 2026-05-03
+
+# Specific date and custom secrets
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -SecretsFile client_a.json -Date 2026-05-03
 ```
 
 ---

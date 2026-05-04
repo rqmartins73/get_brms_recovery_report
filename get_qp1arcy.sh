@@ -4,9 +4,11 @@
 # Downloads the BRMS Recovery Report spool file (QP1ARCY)
 # from an IBM i V7R5 system via SSH + CPYSPLF + SCP.
 #
-# Usage  : ./get_qp1arcy.sh <IBM_i_IP> [secrets_file]
+# Usage  : ./get_qp1arcy.sh <IBM_i_IP> [-s secrets_file] [-d YYYY-MM-DD]
 # Example: ./get_qp1arcy.sh 192.168.10.50
-#          ./get_qp1arcy.sh 192.168.10.50 /etc/mysite.json
+#          ./get_qp1arcy.sh 192.168.10.50 -s /etc/mysite.json
+#          ./get_qp1arcy.sh 192.168.10.50 -d 2026-05-03
+#          ./get_qp1arcy.sh 192.168.10.50 -s /etc/mysite.json -d 2026-05-03
 #
 # Depends: ssh, scp, jq
 # Creds  : ibmiscrt.json  { "user": "...", "key": "/path/to/private_key" }
@@ -18,13 +20,30 @@
 
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-	echo "Usage: $0 <IBM_I_IP> [secrets_file]"
+if [[ $# -lt 1 ]]; then
+	echo "Usage: $0 <IBM_I_IP> [-s secrets_file] [-d YYYY-MM-DD]"
 	exit 1
 fi
 
 IBMI_HOST="$1"
-CONFIG_FILE="${2:-./ibmiscrt.json}"
+shift
+
+CONFIG_FILE="./ibmiscrt.json"
+TARGET_DATE=""
+
+while getopts ":s:d:" opt; do
+	case $opt in
+		s) CONFIG_FILE="$OPTARG" ;;
+		d) TARGET_DATE="$OPTARG" ;;
+		:) echo "ERROR: Option -$OPTARG requires an argument"; exit 1 ;;
+		\?) echo "ERROR: Unknown option: -$OPTARG"; exit 1 ;;
+	esac
+done
+
+if [[ -n "$TARGET_DATE" && ! "$TARGET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+	echo "ERROR: Date must be in YYYY-MM-DD format (e.g. 2026-05-03)"
+	exit 1
+fi
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
 	echo "ERROR: Config file not found: $CONFIG_FILE"
@@ -60,9 +79,11 @@ SSH_OPTS=(
 
 scp "${SSH_OPTS[@]}" remote_get_qp1arcy.sh "${IBMI_USER}@${IBMI_HOST}:/tmp/remote_get_qp1arcy.sh"
 
+REMOTE_CMD="chmod +x /tmp/remote_get_qp1arcy.sh && /tmp/remote_get_qp1arcy.sh"
+[[ -n "$TARGET_DATE" ]] && REMOTE_CMD+=" $TARGET_DATE"
+
 remote_output=$(
-	ssh "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}" \
-	"chmod +x /tmp/remote_get_qp1arcy.sh && /tmp/remote_get_qp1arcy.sh"
+	ssh "${SSH_OPTS[@]}" "${IBMI_USER}@${IBMI_HOST}" "$REMOTE_CMD"
 )
 
 if [[ -z "$remote_output" ]]; then
