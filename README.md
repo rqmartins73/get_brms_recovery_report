@@ -1,6 +1,6 @@
 # get_brms_recovery_report
 
-Downloads the latest IBM i BRMS spool files (**QP1ARCY** — Recovery Report, **QP1AHS** — Backup History) via SSH/SCP.
+Downloads the latest IBM i BRMS spool files (**QP1ARCY** — Recovery Report, **QP1A2RCY** — Recovery Report II, **QP1AHS** — Backup History) via SSH/SCP.
 
 No IBM i Navigator, REST API, SMTP, Outlook automation, or Posh-SSH module is required.
 
@@ -8,9 +8,9 @@ The workflow is:
 
 1. Upload `remote_get_qp1arcy.sh` to the IBM i IFS temp path.
 2. Run it remotely over SSH.
-3. Locate the most recent `QP1ARCY` and `QP1AHS` spool files using `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` (optionally filtered by a specific date).
+3. Locate the most recent `QP1ARCY`, `QP1A2RCY`, and `QP1AHS` spool files using `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` (optionally filtered by a specific date).
 4. Copy each spool to a temporary IFS text file via `CPYSPLF` + `CPYTOSTMF`.
-5. Download both `.txt` files to the local machine using SCP, prefixed with the IBM i LPAR name.
+5. Download all three `.txt` files to the local machine using SCP, prefixed with the IBM i LPAR name.
 6. Remove all temporary files from the IBM i.
 
 ---
@@ -182,12 +182,13 @@ powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 
 
 ## Output
 
-Two files are downloaded to the configured local directory, one per spool file.
+Three files are downloaded to the configured local directory, one per spool file.
 
 Filename format:
 
 ```text
 <LPAR>_QP1ARCY_YYYYMMDD_HHMMSS.txt
+<LPAR>_QP1A2RCY_YYYYMMDD_HHMMSS.txt
 <LPAR>_QP1AHS_YYYYMMDD_HHMMSS.txt
 ```
 
@@ -197,6 +198,7 @@ Example:
 
 ```text
 SYSPROD_QP1ARCY_20260501_162849.txt
+SYSPROD_QP1A2RCY_20260501_162849.txt
 SYSPROD_QP1AHS_20260501_162849.txt
 ```
 
@@ -208,7 +210,7 @@ The remote IBM i script (`remote_get_qp1arcy.sh`) runs the following steps for e
 
 1. Reads the system hostname (`uname -n`, uppercased) to use as the LPAR name prefix in the output filename.
 2. Creates a temporary physical file in `QGPL` to store the spool metadata.
-3. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to identify the target spool file — the most recent one, or the most recent one on a specific date if `-d` / `-Date` was passed.
+3. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to identify the target spool file — the most recent one, or the most recent one on a specific date if `-d` / `-Date` was passed. Repeated for each of the three spool files (`QP1ARCY`, `QP1A2RCY`, `QP1AHS`).
 4. Creates another temporary physical file in `QGPL` for the spool content.
 5. Runs `CPYSPLF` to copy the spool into that physical file.
 6. Runs `CPYTOSTMF` to export the physical file member to an IFS text file named `<LPAR>_<SPLF>_<timestamp>.txt`.
@@ -283,7 +285,7 @@ Valid:
 - Password SSH authentication is not used; key-based SSH is required.
 - The Windows script uses native `ssh.exe` and `scp.exe`.
 
-- The script downloads `QP1ARCY` (Recovery Report) and `QP1AHS` (Backup History). If either spool does not exist the remote script exits with an error.
+- The script downloads `QP1ARCY` (Recovery Report), `QP1A2RCY` (Recovery Report II), and `QP1AHS` (Backup History). If any spool does not exist the remote script exits with an error.
 
 ---
 
