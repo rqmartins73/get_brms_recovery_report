@@ -192,7 +192,7 @@ Filename format:
 <LPAR>_QP1AHS_YYYYMMDD_HHMMSS.txt
 ```
 
-The LPAR name is read from the IBM i system hostname (`uname -n`) and uppercased automatically. The timestamp reflects the spool file's own `CREATE_TIMESTAMP` on the IBM i, not the time of download.
+The node name is the IBM i **Local Location Name** (`LCLLOCNAME` from `DSPNETA`), uppercased. This is unique per node in a PowerHA cluster, unlike the system name which may be shared. Falls back to `uname -n` if `DSPNETA` fails. The timestamp reflects the spool file's own `CREATE_TIMESTAMP` on the IBM i, not the time of download.
 
 Example:
 
@@ -206,7 +206,7 @@ SYSPROD_QP1AHS_20260501_162849.txt
 
 ## How it works internally
 
-On startup, `remote_get_qp1arcy.sh` reads the system hostname (`uname -n`, uppercased) once to use as the LPAR name prefix. It then runs the following steps for each of the three spool files (`QP1ARCY`, `QP1A2RCY`, `QP1AHS`):
+On startup, `remote_get_qp1arcy.sh` reads the **Local Location Name** (`LCLLOCNAME`) from `DSPNETA` once to use as the node prefix in output filenames. This is unique per node in a PowerHA cluster. Falls back to `uname -n` if `DSPNETA` is unavailable. It then runs the following steps for each of the three spool files (`QP1ARCY`, `QP1A2RCY`, `QP1AHS`):
 
 1. Creates a temporary physical file in `QGPL` to store the spool metadata.
 2. Uses `RUNSQLSTM` with `QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC` to retrieve the job name, file number, and `CREATE_TIMESTAMP` of the target spool — the most recent one, or the most recent one on a specific date if `-d` / `-Date` was passed.

@@ -1,7 +1,13 @@
 #!/QOpenSys/pkgs/bin/bash
 set -euo pipefail
 
-LPAR_NAME=$(uname -n | tr '[:lower:]' '[:upper:]')
+LPAR_NAME=$(/QOpenSys/usr/bin/system "DSPNETA" 2>/dev/null \
+	| awk '/LCLLOCNAME/ { print $NF; exit }' \
+	| tr '[:lower:]' '[:upper:]' \
+	| tr -d '[:space:]')
+if [[ -z "$LPAR_NAME" ]]; then
+	LPAR_NAME=$(uname -n | tr '[:lower:]' '[:upper:]')
+fi
 TARGET_DATE="${1:-}"
 _SEQ=0
 
