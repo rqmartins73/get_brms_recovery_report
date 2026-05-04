@@ -60,24 +60,24 @@ SSH key authentication must be configured before running the launcher scripts. T
 
 **Linux/macOS:**
 ```bash
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/ibmcloud_rsa
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
 ```
 
 **Windows PowerShell:**
 ```powershell
-ssh-keygen -t rsa -b 4096 -f "$env:USERPROFILE\.ssh\ibmcloud_rsa"
+ssh-keygen -t rsa -b 4096 -f "$env:USERPROFILE\.ssh\id_rsa"
 ```
 
 ### Step 2 — Install the public key on the IBM i
 
 **Linux/macOS** (`ssh-copy-id`):
 ```bash
-ssh-copy-id -i ~/.ssh/ibmcloud_rsa.pub <user>@<IBM_i_IP>
+ssh-copy-id -i ~/.ssh/id_rsa.pub <user>@<IBM_i_IP>
 ```
 
 **Windows PowerShell** (`Add-SSHKey.ps1`):
 ```powershell
-.\Add-SSHKey.ps1 -User bccerqm -HostName 172.26.2.5 -KeyPath "$env:USERPROFILE\.ssh\ibmcloud_rsa.pub"
+.\Add-SSHKey.ps1 -User bccerqm -HostName 172.26.2.5 -KeyPath "$env:USERPROFILE\.ssh\id_rsa.pub"
 ```
 
 `Add-SSHKey.ps1` will:
@@ -97,7 +97,7 @@ Copy `ibmiscrt.json.template.linux` to `ibmiscrt.json` in the same folder as the
 ```json
 {
     "user": "bccerqm",
-    "ssh_key": "/home/rqmartins/.ssh/ibmcloud_rsa",
+    "ssh_key": "/home/rqmartins/.ssh/id_rsa",
     "local_dir": "/home/rqmartins"
 }
 ```
@@ -109,7 +109,7 @@ Copy `ibmiscrt.json.template.windows` to `ibmiscrt.json` in the same folder as t
 ```json
 {
     "user": "bccerqm",
-    "ssh_key": "C:\\Users\\ricardo.martins\\.ssh\\ibmcloud_rsa",
+    "ssh_key": "C:\\Users\\ricardo.martins\\.ssh\\id_rsa",
     "local_dir": "C:\\Users\\ricardo.martins\\Downloads"
 }
 ```
@@ -121,18 +121,49 @@ Copy `ibmiscrt.json.template.windows` to `ibmiscrt.json` in the same folder as t
 ### Linux/macOS
 
 ```bash
-./get_qp1arcy.sh 172.26.2.5
+./get_qp1arcy.sh <IBM_i_IP> [secrets_file]
 ```
 
-The IBM i IP address is passed as the first argument. Config is read from `ibmiscrt.json`.
+| Argument | Required | Default | Description |
+|---|---|---|---|
+| `IBM_i_IP` | Yes | — | IP address or hostname of the IBM i |
+| `secrets_file` | No | `./ibmiscrt.json` | Path to the credentials JSON file |
+
+Examples:
+
+```bash
+# Default secrets file
+./get_qp1arcy.sh 172.26.2.5
+
+# Custom secrets file
+./get_qp1arcy.sh 172.26.2.5 /etc/client_a.json
+```
 
 ### Windows PowerShell
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName <IBM_i_IP> [-SecretsFile <path>]
 ```
 
-The IBM i IP address is passed as `-HostName`. Config is read from `ibmiscrt.json` in the same folder.
+| Parameter | Required | Default | Description |
+|---|---|---|---|
+| `-HostName` | Yes | — | IP address or hostname of the IBM i |
+| `-SecretsFile` | No | `ibmiscrt.json` | Filename or path to the credentials JSON file |
+
+If `-SecretsFile` is a relative path or filename, it is resolved relative to the script folder. Absolute paths are used as-is.
+
+Examples:
+
+```powershell
+# Default secrets file
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5
+
+# Custom secrets file (relative to script folder)
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -SecretsFile client_a.json
+
+# Custom secrets file (absolute path)
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -SecretsFile "C:\secrets\client_a.json"
+```
 
 ---
 
@@ -205,7 +236,7 @@ Invalid:
 ```json
 {
     "user": "bccerqm",
-    "ssh_key": "/home/rqmartins/.ssh/ibmcloud_rsa",
+    "ssh_key": "/home/rqmartins/.ssh/id_rsa",
     "local_dir": "/home/rqmartins",
 }
 ```
@@ -214,7 +245,7 @@ Valid:
 ```json
 {
     "user": "bccerqm",
-    "ssh_key": "/home/rqmartins/.ssh/ibmcloud_rsa",
+    "ssh_key": "/home/rqmartins/.ssh/id_rsa",
     "local_dir": "/home/rqmartins"
 }
 ```
