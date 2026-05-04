@@ -1,5 +1,5 @@
 {
 	"user": "bccerqm",
-	"ssh_key": "/home/rqmartins/.ssh/ibmcloud_rsa",
+	"ssh_key": "/home/rqmartins/.ssh/id_rsa",
 	"local_dir": "/home/rqmartins"
 }
