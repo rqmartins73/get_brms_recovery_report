@@ -60,14 +60,22 @@ $scriptContent = (Get-Content -Raw $RemoteScript) -replace "`r`n", "`n" -replace
 $tempScript = Join-Path $env:TEMP ("remote_get_qp1arcy_{0}.sh" -f (Get-Random))
 [System.IO.File]::WriteAllText($tempScript, $scriptContent, [System.Text.UTF8Encoding]::new($false))
 
+Write-Host "[INFO] Uploading remote script to ${IbmiUser}@${HostName} ..."
 scp @SshOpts $tempScript "${IbmiUser}@${HostName}:$RemotePath"
 Remove-Item $tempScript -ErrorAction SilentlyContinue
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] scp upload failed (exit $LASTEXITCODE). Check SSH key, user, and host reachability."
+    exit $LASTEXITCODE
+}
 
 $RemoteCmd = "chmod +x $RemotePath && $RemotePath"
 if ($Date -ne "") { $RemoteCmd += " $Date" }
+Write-Host "[INFO] Running remote script ..."
 $RemoteOutput = ssh @SshOpts "${IbmiUser}@${HostName}" $RemoteCmd
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Remote script failed (exit $LASTEXITCODE). Check IBM i user authority and spool file availability."
+    exit $LASTEXITCODE
+}
 
 $RemoteFiles = $RemoteOutput -split "`n" |
     ForEach-Object { $_.Trim() } |
@@ -79,9 +87,13 @@ if (!$RemoteFiles -or $RemoteFiles.Count -eq 0) {
 }
 
 foreach ($RemoteFile in $RemoteFiles) {
+    Write-Host "[INFO] Downloading $RemoteFile ..."
     scp @SshOpts "${IbmiUser}@${HostName}:$RemoteFile" $LocalDir
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Write-Host "Downloaded: $LocalDir\$(Split-Path $RemoteFile -Leaf)"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] scp download failed for $RemoteFile (exit $LASTEXITCODE)"
+        exit $LASTEXITCODE
+    }
+    Write-Host "[OK] Downloaded: $LocalDir\$(Split-Path $RemoteFile -Leaf)"
 }
 
 $rmList = ($RemoteFiles | ForEach-Object { "'$_'" }) -join " "
