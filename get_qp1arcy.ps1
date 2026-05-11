@@ -1,14 +1,15 @@
+[CmdletBinding(DefaultParameterSetName='Run')]
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(ParameterSetName='Version')]
     [switch]$Version,
 
-    [Parameter(Mandatory=$false)]
-    [string]$HostName = "",
+    [Parameter(ParameterSetName='Run', Mandatory=$true)]
+    [string]$HostName,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(ParameterSetName='Run', Mandatory=$false)]
     [string]$SecretsFile = "",
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(ParameterSetName='Run', Mandatory=$false)]
     [string]$Date = ""
 )
 
@@ -22,11 +23,6 @@ if ($Version) {
         maintained = "2026-2026"
     } | ConvertTo-Json
     exit 0
-}
-
-if ($HostName -eq "") {
-    Write-Host "ERROR: -HostName is required"
-    exit 1
 }
 
 $ScriptDir = $PSScriptRoot

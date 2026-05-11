@@ -1,15 +1,16 @@
+[CmdletBinding(DefaultParameterSetName='Run')]
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(ParameterSetName='Version')]
     [switch]$Version,
 
-    [Parameter(Mandatory=$false)]
-    [string]$User = "",
+    [Parameter(ParameterSetName='Run', Mandatory=$true)]
+    [string]$User,
 
-    [Parameter(Mandatory=$false)]
-    [string]$HostName = "",
+    [Parameter(ParameterSetName='Run', Mandatory=$true)]
+    [string]$HostName,
 
-    [Parameter(Mandatory=$false)]
-    [string]$KeyPath = ""
+    [Parameter(ParameterSetName='Run', Mandatory=$true)]
+    [string]$KeyPath
 )
 
 if ($Version) {
@@ -22,11 +23,6 @@ if ($Version) {
         maintained = "2026-2026"
     } | ConvertTo-Json
     exit 0
-}
-
-if ($User -eq "" -or $HostName -eq "" -or $KeyPath -eq "") {
-    Write-Host "ERROR: -User, -HostName and -KeyPath are all required"
-    exit 1
 }
 
 # Verifica existência da chave pública
