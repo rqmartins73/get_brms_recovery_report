@@ -20,6 +20,11 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" == "--version" || "${1:-}" == "-Version" ]]; then
+	printf '{\n  "tool": "get_qp1arcy.sh",\n  "version": "1.0.0",\n  "author": "Ricardo Martins",\n  "company": "Blue Chip Portugal",\n  "license": "MIT",\n  "maintained": "2026-2026"\n}\n'
+	exit 0
+fi
+
 if [[ $# -lt 1 ]]; then
 	echo "Usage: $0 <IBM_I_IP> [-s secrets_file] [-d YYYY-MM-DD]"
 	exit 1

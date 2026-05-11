@@ -1,6 +1,11 @@
 #!/QOpenSys/pkgs/bin/bash
 set -euo pipefail
 
+if [[ "${1:-}" == "--version" || "${1:-}" == "-Version" ]]; then
+	printf '{\n  "tool": "remote_get_qp1arcy.sh",\n  "version": "1.0.0",\n  "author": "Ricardo Martins",\n  "company": "Blue Chip Portugal",\n  "license": "MIT",\n  "maintained": "2026-2026"\n}\n'
+	exit 0
+fi
+
 LPAR_NAME=$(/QOpenSys/usr/bin/system "DSPNETA" 2>/dev/null \
 	| awk '/Default local location/ { print $NF; exit }' \
 	| tr '[:lower:]' '[:upper:]' \

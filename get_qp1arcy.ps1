@@ -1,6 +1,9 @@
 param(
-    [Parameter(Mandatory=$true)]
-    [string]$HostName,
+    [Parameter(Mandatory=$false)]
+    [switch]$Version,
+
+    [Parameter(Mandatory=$false)]
+    [string]$HostName = "",
 
     [Parameter(Mandatory=$false)]
     [string]$SecretsFile = "",
@@ -8,6 +11,23 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$Date = ""
 )
+
+if ($Version) {
+    [ordered]@{
+        tool       = "get_qp1arcy.ps1"
+        version    = "1.0.0"
+        author     = "Ricardo Martins"
+        company    = "Blue Chip Portugal"
+        license    = "MIT"
+        maintained = "2026-2026"
+    } | ConvertTo-Json
+    exit 0
+}
+
+if ($HostName -eq "") {
+    Write-Host "ERROR: -HostName is required"
+    exit 1
+}
 
 $ScriptDir = $PSScriptRoot
 

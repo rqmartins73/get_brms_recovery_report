@@ -1,13 +1,33 @@
 param(
-    [Parameter(Mandatory=$true)]
-    [string]$User,
+    [Parameter(Mandatory=$false)]
+    [switch]$Version,
 
-    [Parameter(Mandatory=$true)]
-    [string]$HostName,
+    [Parameter(Mandatory=$false)]
+    [string]$User = "",
 
-    [Parameter(Mandatory=$true)]
-    [string]$KeyPath
+    [Parameter(Mandatory=$false)]
+    [string]$HostName = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$KeyPath = ""
 )
+
+if ($Version) {
+    [ordered]@{
+        tool       = "Add-SSHKey.ps1"
+        version    = "1.0.0"
+        author     = "Ricardo Martins"
+        company    = "Blue Chip Portugal"
+        license    = "MIT"
+        maintained = "2026-2026"
+    } | ConvertTo-Json
+    exit 0
+}
+
+if ($User -eq "" -or $HostName -eq "" -or $KeyPath -eq "") {
+    Write-Host "ERROR: -User, -HostName and -KeyPath are all required"
+    exit 1
+}
 
 # Verifica existência da chave pública
 if (!(Test-Path $KeyPath)) {
