@@ -5,6 +5,17 @@ Follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.0] — 2026-05-12
+
+### Added
+- `-UploadToCOS` flag on `get_qp1arcy.ps1`: uploads each downloaded spool file to IBM COS after SCP transfer
+- Bucket subfolder derived from the spool's `CREATE_TIMESTAMP` (`YYYYMM`), not the download date
+- COS fields in `ibmiscrt.json` templates: `cos_endpoint`, `cos_region`, `cos_bucket`, `cos_access_key`, `cos_secret_key`
+- README: IBM Cloud Object Storage section with endpoint table, credential instructions, and folder structure example
+- Uses `AWS.Tools.S3` PowerShell module (S3-compatible API); no AWS account required
+
+---
+
 ## [1.0.0] — 2026-05-11
 
 ### Added

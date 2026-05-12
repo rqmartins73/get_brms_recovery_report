@@ -1,5 +1,11 @@
 {
-	"user": "bccerqm",
-	"ssh_key": "%USERPROFILE%\\.ssh\\id_rsa",
-	"local_dir": "%USERPROFILE%\\Downloads"
+	"user":      "bccerqm",
+	"ssh_key":   "%USERPROFILE%\\.ssh\\id_rsa",
+	"local_dir": "%USERPROFILE%\\Downloads",
+
+	"cos_endpoint":   "https://s3.eu-de.cloud-object-storage.appdomain.cloud",
+	"cos_region":     "eu-de",
+	"cos_bucket":     "brms-reports",
+	"cos_access_key": "YOUR_HMAC_ACCESS_KEY_ID",
+	"cos_secret_key": "YOUR_HMAC_SECRET_KEY"
 }

@@ -10,13 +10,16 @@ param(
     [string]$SecretsFile = "",
 
     [Parameter(ParameterSetName='Run', Mandatory=$false)]
-    [string]$Date = ""
+    [string]$Date = "",
+
+    [Parameter(ParameterSetName='Run', Mandatory=$false)]
+    [switch]$UploadToCOS
 )
 
 if ($Version) {
     [ordered]@{
         tool       = "get_qp1arcy.ps1"
-        version    = "1.0.0"
+        version    = "1.1.0"
         author     = "Ricardo Martins"
         company    = "Blue Chip Portugal"
         license    = "MIT"
@@ -59,6 +62,34 @@ if (!$IbmiUser -or !$SshKey -or !$LocalDir) {
 if (!(Test-Path $SshKey)) {
     Write-Host "ERROR: SSH key not found: $SshKey"
     exit 1
+}
+
+# COS — validate config and import module only when -UploadToCOS is requested
+$CosEndpoint = $null
+$CosBucket   = $null
+$CosAccess   = $null
+$CosSecret   = $null
+$CosRegion   = $null
+
+if ($UploadToCOS) {
+    $CosEndpoint = $cfg.cos_endpoint
+    $CosBucket   = $cfg.cos_bucket
+    $CosAccess   = $cfg.cos_access_key
+    $CosSecret   = $cfg.cos_secret_key
+    $CosRegion   = $cfg.cos_region
+
+    if (!$CosEndpoint -or !$CosBucket -or !$CosAccess -or !$CosSecret -or !$CosRegion) {
+        Write-Host "[ERROR] -UploadToCOS requires ibmiscrt.json to contain:"
+        Write-Host "        cos_endpoint, cos_bucket, cos_access_key, cos_secret_key, cos_region"
+        exit 1
+    }
+
+    if (-not (Get-Module -ListAvailable -Name AWS.Tools.S3)) {
+        Write-Host "[ERROR] PowerShell module AWS.Tools.S3 not found."
+        Write-Host "        Install it with: Install-Module -Name AWS.Tools.S3 -Scope CurrentUser"
+        exit 1
+    }
+    Import-Module AWS.Tools.S3 -ErrorAction Stop
 }
 
 $RemoteScript = Join-Path $ScriptDir "remote_get_qp1arcy.sh"
@@ -109,7 +140,34 @@ foreach ($RemoteFile in $RemoteFiles) {
         Write-Host "[ERROR] scp download failed for $RemoteFile (exit $LASTEXITCODE)"
         exit $LASTEXITCODE
     }
-    Write-Host "[OK] Downloaded: $LocalDir\$(Split-Path $RemoteFile -Leaf)"
+    $leaf      = Split-Path $RemoteFile -Leaf
+    $localFile = Join-Path $LocalDir $leaf
+    Write-Host "[OK] Downloaded: $localFile"
+
+    if ($UploadToCOS) {
+        # Derive YYYYMM from filename: {LPAR}_{SPLF}_{YYYYMMDD}_{HHMMSS}.txt
+        if ($leaf -match '_(\d{8})_') {
+            $cosFolder = $Matches[1].Substring(0, 6)
+        } else {
+            $cosFolder = (Get-Date).ToString("yyyyMM")
+        }
+        $cosKey = "$cosFolder/$leaf"
+        Write-Host "[INFO] Uploading to COS: $CosBucket/$cosKey ..."
+        try {
+            Write-S3Object -BucketName $CosBucket `
+                           -Key        $cosKey `
+                           -File       $localFile `
+                           -AccessKey  $CosAccess `
+                           -SecretKey  $CosSecret `
+                           -EndpointUrl $CosEndpoint `
+                           -Region     $CosRegion `
+                           -ErrorAction Stop
+            Write-Host "[OK] COS: $cosKey"
+        } catch {
+            Write-Host "[ERROR] COS upload failed for ${leaf}: $_"
+            exit 1
+        }
+    }
 }
 
 $rmList = ($RemoteFiles | ForEach-Object { "'$_'" }) -join " "

@@ -47,6 +47,7 @@ The workflow is:
 |---|---|
 | Linux/macOS | Bash, `ssh`, `scp`, `jq` |
 | Windows | PowerShell, OpenSSH client (`ssh.exe` and `scp.exe` — included with Windows 10/11) |
+| Windows (COS upload) | PowerShell module `AWS.Tools.S3` — see [IBM Cloud Object Storage](#ibm-cloud-object-storage-optional) |
 
 > Windows does **not** require Posh-SSH. Both scripts use the native OpenSSH client.
 
@@ -108,13 +109,15 @@ Copy `ibmiscrt.json.template.windows` to `ibmiscrt.json` in the same folder as t
 
 ```json
 {
-    "user": "bccerqm",
-    "ssh_key": "%USERPROFILE%\\.ssh\\id_rsa",
+    "user":      "bccerqm",
+    "ssh_key":   "%USERPROFILE%\\.ssh\\id_rsa",
     "local_dir": "%USERPROFILE%\\Downloads"
 }
 ```
 
 `%USERPROFILE%` is expanded automatically by the launcher script.
+
+The COS fields (`cos_endpoint`, `cos_region`, `cos_bucket`, `cos_access_key`, `cos_secret_key`) are optional. They are only required when using `-UploadToCOS`. See [IBM Cloud Object Storage](#ibm-cloud-object-storage-optional).
 
 ---
 
@@ -151,7 +154,7 @@ Examples:
 ### Windows PowerShell
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName <IBM_i_IP> [-SecretsFile <path>] [-Date YYYY-MM-DD]
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName <IBM_i_IP> [-SecretsFile <path>] [-Date YYYY-MM-DD] [-UploadToCOS]
 ```
 
 | Parameter | Required | Default | Description |
@@ -159,6 +162,7 @@ powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName <IBM_i_IP> 
 | `-HostName` | Yes | — | IP address or hostname of the IBM i |
 | `-SecretsFile` | No | `ibmiscrt.json` | Filename or path to the credentials JSON file |
 | `-Date` | No | latest available | Download spool files from this specific date (`YYYY-MM-DD`) |
+| `-UploadToCOS` | No | off | After download, upload each file to IBM COS (requires COS fields in `ibmiscrt.json`) |
 
 If `-SecretsFile` is a relative path or filename, it is resolved relative to the script folder. Absolute paths are used as-is.
 
@@ -174,8 +178,11 @@ powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 
 # Spool files from a specific date
 powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -Date 2026-05-03
 
-# Specific date and custom secrets
-powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -SecretsFile client_a.json -Date 2026-05-03
+# Download and upload to IBM COS
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -UploadToCOS
+
+# Specific date + COS upload
+powershell -ExecutionPolicy Bypass -File .\get_qp1arcy.ps1 -HostName 172.26.2.5 -Date 2026-05-03 -UploadToCOS
 ```
 
 ---
@@ -276,6 +283,81 @@ Valid:
     "local_dir": "/home/rqmartins"
 }
 ```
+
+---
+
+## IBM Cloud Object Storage (optional)
+
+When `-UploadToCOS` is passed, each downloaded file is uploaded to an IBM COS bucket after the SCP transfer. IBM COS exposes an S3-compatible API; the script uses the `AWS.Tools.S3` PowerShell module to write objects.
+
+### Install the PowerShell module (one-time)
+
+```powershell
+Install-Module -Name AWS.Tools.S3 -Scope CurrentUser
+```
+
+No AWS account is needed. The module communicates with IBM COS using HMAC credentials.
+
+### COS fields in `ibmiscrt.json`
+
+```json
+{
+    "user":      "bccerqm",
+    "ssh_key":   "%USERPROFILE%\\.ssh\\id_rsa",
+    "local_dir": "%USERPROFILE%\\Downloads",
+
+    "cos_endpoint":   "https://s3.eu-de.cloud-object-storage.appdomain.cloud",
+    "cos_region":     "eu-de",
+    "cos_bucket":     "brms-reports",
+    "cos_access_key": "YOUR_HMAC_ACCESS_KEY_ID",
+    "cos_secret_key": "YOUR_HMAC_SECRET_KEY"
+}
+```
+
+| Field | Description |
+|---|---|
+| `cos_endpoint` | IBM COS regional or cross-region endpoint URL |
+| `cos_region` | Region identifier matching the endpoint (e.g. `eu-de`, `us-south`, `eu-gb`) |
+| `cos_bucket` | Target bucket name (must already exist) |
+| `cos_access_key` | HMAC Access Key ID (from IBM Cloud IAM → Service credentials → HMAC) |
+| `cos_secret_key` | HMAC Secret Access Key |
+
+### Bucket folder structure
+
+Files are placed in a subfolder named `YYYYMM`, derived from the spool file's own `CREATE_TIMESTAMP` (the same timestamp embedded in the filename), not from the date of the download run.
+
+```text
+brms-reports/
+  202604/
+    SYSPROD_QP1ARCY_20260430_235901.txt
+    SYSPROD_QP1A2RCY_20260430_235901.txt
+    SYSPROD_QP1AHS_20260430_235901.txt
+  202605/
+    SYSPROD_QP1ARCY_20260501_162849.txt
+    SYSPROD_QP1A2RCY_20260501_162849.txt
+    SYSPROD_QP1AHS_20260501_162849.txt
+```
+
+### How to get HMAC credentials
+
+1. Open IBM Cloud → Resource list → locate your COS instance.
+2. Go to **Service credentials** → **New credential**.
+3. Enable **Include HMAC credential** before creating.
+4. Expand the credential and copy `access_key_id` and `secret_access_key` from the `cos_hmac_keys` block.
+
+### COS endpoint reference
+
+| Location | Endpoint |
+|---|---|
+| Frankfurt (eu-de) | `https://s3.eu-de.cloud-object-storage.appdomain.cloud` |
+| London (eu-gb) | `https://s3.eu-gb.cloud-object-storage.appdomain.cloud` |
+| Amsterdam (eu-nl) | `https://s3.eu-nl.cloud-object-storage.appdomain.cloud` |
+| Dallas (us-south) | `https://s3.us-south.cloud-object-storage.appdomain.cloud` |
+| Washington (us-east) | `https://s3.us-east.cloud-object-storage.appdomain.cloud` |
+| EU cross-region | `https://s3.eu.cloud-object-storage.appdomain.cloud` |
+| US cross-region | `https://s3.us.cloud-object-storage.appdomain.cloud` |
+
+Use the private endpoint (`s3.private.eu-de...`) if the client machine runs inside IBM Cloud and you want to avoid egress charges.
 
 ---
 
